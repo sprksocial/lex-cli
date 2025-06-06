@@ -5,7 +5,7 @@ Command-line tool to generate Lexicon schemas and APIs.
 ## Usage
 
 ```
-Usage: lex [options] [command]
+Usage: deno run mod.ts [options] [command]
 
 Lexicon CLI
 
@@ -14,31 +14,39 @@ Options:
   -h, --help                        display help for command
 
 Commands:
-  new [options] <nsid> [outfile]    Create a new schema json file
-  gen-md <schemas...>               Generate markdown documentation
-  gen-ts-obj <schemas...>           Generate a TS file that exports an array of schemas
-  gen-api <outdir> <schemas...>     Generate a TS client API
-  gen-server <outdir> <schemas...>  Generate a TS server API
+  gen-md <outfile> <lexicons...>    Generate markdown documentation
+  gen-ts-obj <lexicons...>          Generate a TS file that exports an array of lexicons
+  gen-api <outdir> <lexicons...>    Generate a TS client API
+  gen-server <outdir> <lexicons...> Generate a Hono server API
   help [command]                    display help for command
 ```
 
-**Example 1:** Generate an api
+**Example 1:** Generate markdown documentation
 
 ```
-$ lex gen-api ./api/src ./schemas/com/service/*.json ./schemas/com/another/*.json
+$ deno run mod.ts gen-md ./docs/api.md ./schemas/com/service/*.json
 ```
 
-**Example 2:** Generate a server
+**Example 2:** Generate a client API
 
 ```
-$ lex gen-server ./server/src/xrpc ./schemas/com/service/*.json ./schemas/com/another/*.json
+$ deno run mod.ts gen-api ./api/src ./schemas/com/service/*.json ./schemas/com/another/*.json
+```
+
+**Example 3:** Generate a server API
+
+```
+$ deno run mod.ts gen-server ./server/src ./schemas/com/service/*.json ./schemas/com/another/*.json
+```
+
+## Development
+
+To run with all permissions:
+
+```
+$ deno run -A mod.ts [command]
 ```
 
 ## License
 
-This project is dual-licensed under MIT and Apache 2.0 terms:
-
-- MIT license ([LICENSE-MIT.txt](https://github.com/bluesky-social/atproto/blob/main/LICENSE-MIT.txt) or http://opensource.org/licenses/MIT)
-- Apache License, Version 2.0, ([LICENSE-APACHE.txt](https://github.com/bluesky-social/atproto/blob/main/LICENSE-APACHE.txt) or http://www.apache.org/licenses/LICENSE-2.0)
-
-Downstream projects and end users may chose either license individually, or both together, at their discretion. The motivation for this dual-licensing is the additional software patent assurance provided by Apache 2.0.
+This project is licensed under MIT
