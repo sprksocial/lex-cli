@@ -1,0 +1,24 @@
+{
+  "name": "@sprk/lex-cli",
+  "version": "0.8.2",
+  "exports": "./mod.ts",
+  "license": "MIT",
+  "fmt": {
+    "lineWidth": 80,
+    "indentWidth": 2,
+    "singleQuote": true,
+    "proseWrap": "always"
+  },
+  "imports": {
+    "@std/fs": "jsr:@std/fs@^1.0.18",
+    "@std/path": "jsr:@std/path@^1.1.0",
+    "commander": "npm:commander@^9.4.0",
+    "yesno": "npm:yesno@^0.4.0",
+    "@atproto/lexicon": "npm:@atproto/lexicon@^0.4.11",
+    "@atproto/syntax": "npm:@atproto/syntax@^0.4.0",
+    "chalk": "npm:chalk@^4.1.2",
+    "prettier": "npm:prettier@^3.2.5",
+    "ts-morph": "npm:ts-morph@^24.0.0",
+    "zod": "npm:zod@^3.23.8"
+  }
+} 

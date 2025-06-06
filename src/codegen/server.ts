@@ -1,13 +1,13 @@
 import {
   IndentationText,
   Project,
-  SourceFile,
+  type SourceFile,
   VariableDeclarationKind,
 } from 'ts-morph'
 import { type LexiconDoc, Lexicons } from '@atproto/lexicon'
 import { NSID } from '@atproto/syntax'
-import { type GeneratedAPI } from '../types'
-import { gen, lexiconsTs, utilTs } from './common'
+import type { GeneratedAPI } from '../types.ts'
+import { gen, lexiconsTs, utilTs } from './common.ts'
 import {
   genCommonImports,
   genImports,
@@ -16,7 +16,7 @@ import {
   genXrpcInput,
   genXrpcOutput,
   genXrpcParams,
-} from './lex-gen'
+} from './lex-gen.ts'
 import {
   type DefTreeNode,
   lexiconsToDefTree,
@@ -24,7 +24,7 @@ import {
   toCamelCase,
   toScreamingSnakeCase,
   toTitleCase,
-} from './util'
+} from './util.ts'
 
 export async function genServerApi(
   lexiconDocs: LexiconDoc[],
@@ -53,9 +53,9 @@ const indexTs = (
   nsidTokens: Record<string, string[]>,
 ) =>
   gen(project, '/index.ts', async (file) => {
-    //= import {createServer as createXrpcServer, Server as XrpcServer} from '@atproto/xrpc-server'
+    //= import {createServer as createXrpcServer, Server as XrpcServer} from '@sprk/xrpc-server'
     file.addImportDeclaration({
-      moduleSpecifier: '@atproto/xrpc-server',
+      moduleSpecifier: '@sprk/xrpc-server',
       namedImports: [
         {
           name: 'createServer',
@@ -379,7 +379,7 @@ function genServerXrpcMethod(
   const def = lexicons.getDefOrThrow(lexUri, ['query', 'procedure'])
 
   file.addImportDeclaration({
-    moduleSpecifier: '@atproto/xrpc-server',
+    moduleSpecifier: '@sprk/xrpc-server',
     namedImports: [{ name: 'HandlerAuth' }, { name: 'HandlerPipeThrough' }],
   })
   //= export interface HandlerInput {...}
@@ -514,7 +514,7 @@ function genServerXrpcStreaming(
   const def = lexicons.getDefOrThrow(lexUri, ['subscription'])
 
   file.addImportDeclaration({
-    moduleSpecifier: '@atproto/xrpc-server',
+    moduleSpecifier: '@sprk/xrpc-server',
     namedImports: [{ name: 'HandlerAuth' }, { name: 'ErrorFrame' }],
   })
 

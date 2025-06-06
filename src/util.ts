@@ -1,19 +1,30 @@
-import fs from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync } from '@std/fs/unstable-read-file'
+import { statSync } from '@std/fs/unstable-stat'
+import { mkdirSync } from '@std/fs/unstable-mkdir'
+import { writeFileSync } from '@std/fs/unstable-write-file'
+import { existsSync } from '@std/fs'
+import { join } from '@std/path'
+import { removeSync } from '@std/fs/unstable-remove'
+import { readDirSync } from '@std/fs/unstable-read-dir'
 import chalk from 'chalk'
-import { ZodError, type ZodFormattedError } from 'zod'
+import { ZodError } from 'zod'
 import { type LexiconDoc, parseLexiconDoc } from '@atproto/lexicon'
-import { type FileDiff, type GeneratedAPI } from './types'
+import type { FileDiff, GeneratedAPI } from './types.ts'
+
+type RecursiveZodError = {
+  _errors?: string[]
+  [k: string]: RecursiveZodError | string[] | undefined
+}
 
 export function readAllLexicons(paths: string[]): LexiconDoc[] {
   const docs: LexiconDoc[] = []
   for (const path of paths) {
-    if (!path.endsWith('.json') || !fs.statSync(path).isFile()) {
+    if (!path.endsWith('.json') || !statSync(path).isFile) {
       continue
     }
     try {
       docs.push(readLexicon(path))
-    } catch (e) {
+    } catch {
       // skip
     }
   }
@@ -24,7 +35,7 @@ export function readLexicon(path: string): LexiconDoc {
   let str: string
   let obj: unknown
   try {
-    str = fs.readFileSync(path, 'utf8')
+    str = new TextDecoder().decode(readFileSync(path))
   } catch (e) {
     console.error(`Failed to read file`, path)
     throw e
@@ -103,17 +114,21 @@ export function applyFileDiff(diff: FileDiff[]) {
     switch (d.act) {
       case 'add':
       case 'mod':
-        fs.mkdirSync(join(d.path, '..'), { recursive: true }) // lazy way to make sure the parent dir exists
-        fs.writeFileSync(d.path, d.content || '', 'utf8')
+        mkdirSync(join(d.path, '..'), { recursive: true }) // lazy way to make sure the parent dir exists
+        writeFileSync(d.path, new TextEncoder().encode(d.content || ''))
         break
       case 'del':
-        fs.unlinkSync(d.path)
+        removeSync(d.path)
         break
     }
   }
 }
 
-function printZodError(node: ZodFormattedError<any>, path = ''): boolean {
+function isRecursiveZodError(value: unknown): value is RecursiveZodError {
+  return value !== null && typeof value === 'object'
+}
+
+function printZodError(node: RecursiveZodError, path = ''): boolean {
   if (node._errors?.length) {
     console.log(chalk.red(`Issues at ${path}:`))
     for (const err of dedup(node._errors)) {
@@ -125,7 +140,10 @@ function printZodError(node: ZodFormattedError<any>, path = ''): boolean {
       if (k === '_errors') {
         continue
       }
-      printZodError(node[k], `${path}/${k}`)
+      const value = node[k]
+      if (isRecursiveZodError(value)) {
+        printZodError(value, `${path}/${k}`)
+      }
     }
   }
   return false
@@ -133,10 +151,10 @@ function printZodError(node: ZodFormattedError<any>, path = ''): boolean {
 
 function readdirRecursiveSync(root: string, files: string[] = [], prefix = '') {
   const dir = join(root, prefix)
-  if (!fs.existsSync(dir)) return files
-  if (fs.statSync(dir).isDirectory())
-    fs.readdirSync(dir).forEach(function (name) {
-      readdirRecursiveSync(root, files, join(prefix, name))
+  if (!existsSync(dir)) return files
+  if (statSync(dir).isDirectory)
+    Array.from(readDirSync(dir)).forEach(function (entry) {
+      readdirRecursiveSync(root, files, join(prefix, entry.name))
     })
   else if (prefix.endsWith('.ts')) {
     files.push(join(root, prefix))

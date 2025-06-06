@@ -1,4 +1,4 @@
-import { relative as getRelativePath } from 'node:path/posix'
+import { relative } from 'jsr:@std/path'
 import { SourceFile, VariableDeclarationKind } from 'ts-morph'
 import {
   type LexArray,
@@ -12,7 +12,7 @@ import {
   type LexUserType,
   Lexicons,
 } from '@atproto/lexicon'
-import { toCamelCase, toScreamingSnakeCase, toTitleCase } from './util'
+import { toCamelCase, toScreamingSnakeCase, toTitleCase } from './util.ts'
 
 interface Commentable<T> {
   addJsDoc: ({ description }: { description: string }) => T
@@ -100,7 +100,7 @@ export function genImports(
 
   for (const nsid of imports) {
     const targetPath = '/' + nsid.split('.').join('/') + '.js'
-    let resolvedPath = getRelativePath(startPath, targetPath)
+    let resolvedPath = relative(startPath, targetPath)
     if (!resolvedPath.startsWith('.')) {
       resolvedPath = `./${resolvedPath}`
     }

@@ -13,14 +13,14 @@ export async function process(outFilePath: string, lexicons: LexiconDoc[]) {
   let existingContent = ''
   try {
     existingContent = fs.readFileSync(outFilePath, 'utf8')
-  } catch (e) {
+  } catch {
     // ignore - no existing content
   }
   const fileLines: StringTree = existingContent.split('\n')
 
   // find previously generated content
-  let startIndex = fileLines.findIndex((line) => matchesStart(line))
-  let endIndex = fileLines.findIndex((line) => matchesEnd(line))
+  let startIndex = fileLines.findIndex((line) => matchesStart(line as string))
+  let endIndex = fileLines.findIndex((line) => matchesEnd(line as string))
   if (startIndex === -1) {
     startIndex = fileLines.length
   }
@@ -38,7 +38,7 @@ export async function process(outFilePath: string, lexicons: LexiconDoc[]) {
   fs.writeFileSync(outFilePath, merge(fileLines), 'utf8')
 }
 
-async function genMdLines(lexicons: LexiconDoc[]): Promise<StringTree> {
+function genMdLines(lexicons: LexiconDoc[]): StringTree {
   const doc: StringTree = []
   for (const lexicon of lexicons) {
     console.log(lexicon.id)
@@ -68,10 +68,10 @@ function merge(arr: StringTree): string {
     .join('\n')
 }
 
-function matchesStart(line) {
+function matchesStart(line: string) {
   return /<!-- START lex /.test(line)
 }
 
-function matchesEnd(line) {
+function matchesEnd(line: string) {
   return /<!-- END lex /.test(line)
 }
