@@ -1,3 +1,4 @@
+[![JSR](https://jsr.io/badges/@<scope>/<package>)](https://jsr.io/@sprk/lex-cli)
 # Lexicon CLI Tool
 
 Command-line tool to generate Lexicon schemas and APIs.
