@@ -1,4 +1,4 @@
-import { relative } from 'jsr:@std/path'
+import { relative } from '@std/path'
 import { SourceFile, VariableDeclarationKind } from 'ts-morph'
 import {
   type LexArray,
