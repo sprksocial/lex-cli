@@ -1,0 +1,1 @@
+{"version":3,"file":"client.d.ts","sourceRoot":"","sources":["../../src/codegen/client.ts"],"names":[],"mappings":"AAMA,OAAO,EAAkB,KAAK,UAAU,EAAY,MAAM,kBAAkB,CAAA;AAE5E,OAAO,EAAE,KAAK,YAAY,EAAE,MAAM,UAAU,CAAA;AA4B5C,wBAAsB,YAAY,CAChC,WAAW,EAAE,UAAU,EAAE,GACxB,OAAO,CAAC,YAAY,CAAC,CAgBvB"}
