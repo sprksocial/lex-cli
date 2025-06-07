@@ -1,30 +1,30 @@
-import { relative } from '@std/path'
-import { SourceFile, VariableDeclarationKind } from 'ts-morph'
-import {
-  type LexArray,
-  type LexBlob,
-  type LexBytes,
-  type LexCidLink,
-  type LexIpldType,
-  type LexObject,
-  type LexPrimitive,
-  type LexToken,
-  type LexUserType,
+import { relative } from '@std/path';
+import { type SourceFile, VariableDeclarationKind } from 'ts-morph';
+import type {
+  LexArray,
+  LexBlob,
+  LexBytes,
+  LexCidLink,
   Lexicons,
-} from '@atproto/lexicon'
-import { toCamelCase, toScreamingSnakeCase, toTitleCase } from './util.ts'
+  LexIpldType,
+  LexObject,
+  LexPrimitive,
+  LexToken,
+  LexUserType,
+} from '@atproto/lexicon';
+import { toCamelCase, toScreamingSnakeCase, toTitleCase } from './util.ts';
 
 interface Commentable<T> {
-  addJsDoc: ({ description }: { description: string }) => T
+  addJsDoc: ({ description }: { description: string }) => T;
 }
 export function genComment<T>(
   commentable: Commentable<T>,
   def: LexUserType,
 ): T {
   if (def.description) {
-    commentable.addJsDoc({ description: def.description })
+    commentable.addJsDoc({ description: def.description });
   }
-  return commentable as T
+  return commentable as T;
 }
 
 export function genCommonImports(file: SourceFile, baseNsid: string) {
@@ -36,38 +36,42 @@ export function genCommonImports(file: SourceFile, baseNsid: string) {
     .addNamedImports([
       { name: 'ValidationResult', isTypeOnly: true },
       { name: 'BlobRef' },
-    ])
+    ]);
 
   //= import {CID} from 'multiformats/cid'
   file
     .addImportDeclaration({
       moduleSpecifier: 'multiformats/cid',
     })
-    .addNamedImports([{ name: 'CID' }])
+    .addNamedImports([{ name: 'CID' }]);
 
   //= import { validate as _validate } from '../../lexicons.ts'
   file
     .addImportDeclaration({
-      moduleSpecifier: `${baseNsid
-        .split('.')
-        .map((_str) => '..')
-        .join('/')}/lexicons`,
+      moduleSpecifier: `${
+        baseNsid
+          .split('.')
+          .map((_str) => '..')
+          .join('/')
+      }/lexicons`,
     })
-    .addNamedImports([{ name: 'validate', alias: '_validate' }])
+    .addNamedImports([{ name: 'validate', alias: '_validate' }]);
 
   //= import { type $Typed, is$typed as _is$typed, type OmitKey } from '../[...]/util.ts'
   file
     .addImportDeclaration({
-      moduleSpecifier: `${baseNsid
-        .split('.')
-        .map((_str) => '..')
-        .join('/')}/util`,
+      moduleSpecifier: `${
+        baseNsid
+          .split('.')
+          .map((_str) => '..')
+          .join('/')
+      }/util`,
     })
     .addNamedImports([
       { name: '$Typed', isTypeOnly: true },
       { name: 'is$typed', alias: '_is$typed' },
       { name: 'OmitKey', isTypeOnly: true },
-    ])
+    ]);
 
   // tsc adds protection against circular imports, which hurts bundle size.
   // Since we know that lexicon.ts and util.ts do not depend on the file being
@@ -81,14 +85,14 @@ export function genCommonImports(file: SourceFile, baseNsid: string) {
       { name: 'is$typed', initializer: '_is$typed' },
       { name: 'validate', initializer: '_validate' },
     ],
-  })
+  });
 
   //= const id = "{baseNsid}"
   file.addVariableStatement({
     isExported: false, // Do not export to allow tree-shaking
     declarationKind: VariableDeclarationKind.Const,
     declarations: [{ name: 'id', initializer: JSON.stringify(baseNsid) }],
-  })
+  });
 }
 
 export function genImports(
@@ -96,19 +100,19 @@ export function genImports(
   imports: Set<string>,
   baseNsid: string,
 ) {
-  const startPath = '/' + baseNsid.split('.').slice(0, -1).join('/')
+  const startPath = '/' + baseNsid.split('.').slice(0, -1).join('/');
 
   for (const nsid of imports) {
-    const targetPath = '/' + nsid.split('.').join('/') + '.js'
-    let resolvedPath = relative(startPath, targetPath)
+    const targetPath = '/' + nsid.split('.').join('/') + '.js';
+    let resolvedPath = relative(startPath, targetPath);
     if (!resolvedPath.startsWith('.')) {
-      resolvedPath = `./${resolvedPath}`
+      resolvedPath = `./${resolvedPath}`;
     }
     file.addImportDeclaration({
       isTypeOnly: true,
       moduleSpecifier: resolvedPath,
       namespaceImport: toTitleCase(nsid),
-    })
+    });
   }
 }
 
@@ -118,23 +122,23 @@ export function genUserType(
   lexicons: Lexicons,
   lexUri: string,
 ) {
-  const def = lexicons.getDefOrThrow(lexUri)
+  const def = lexicons.getDefOrThrow(lexUri);
   switch (def.type) {
     case 'array':
-      genArray(file, imports, lexUri, def)
-      break
+      genArray(file, imports, lexUri, def);
+      break;
     case 'token':
-      genToken(file, lexUri, def)
-      break
+      genToken(file, lexUri, def);
+      break;
     case 'object': {
-      const ifaceName: string = toTitleCase(getHash(lexUri))
+      const ifaceName: string = toTitleCase(getHash(lexUri));
       genObject(file, imports, lexUri, def, ifaceName, {
         typeProperty: true,
-      })
+      });
       genObjHelpers(file, lexUri, ifaceName, {
         requireTypeProperty: false,
-      })
-      break
+      });
+      break;
     }
 
     case 'blob':
@@ -144,13 +148,13 @@ export function genUserType(
     case 'integer':
     case 'string':
     case 'unknown':
-      genPrimitiveOrBlob(file, lexUri, def)
-      break
+      genPrimitiveOrBlob(file, lexUri, def);
+      break;
 
     default:
       throw new Error(
         `genLexUserType() called with wrong definition type (${def.type}) in ${lexUri}`,
-      )
+      );
   }
 }
 
@@ -165,20 +169,20 @@ function genObject(
     allowUnknownProperties = false,
     typeProperty = false,
   }: {
-    defaultsArePresent?: boolean
-    allowUnknownProperties?: boolean
-    typeProperty?: boolean | 'required'
+    defaultsArePresent?: boolean;
+    allowUnknownProperties?: boolean;
+    typeProperty?: boolean | 'required';
   } = {},
 ) {
   const iface = file.addInterface({
     name: ifaceName,
     isExported: true,
-  })
-  genComment(iface, def)
+  });
+  genComment(iface, def);
 
   if (typeProperty) {
-    const hash = getHash(lexUri)
-    const baseNsid = stripScheme(stripHash(lexUri))
+    const hash = getHash(lexUri);
+    const baseNsid = stripScheme(stripHash(lexUri));
 
     //= $type?: <uri>
     iface.addProperty({
@@ -189,37 +193,35 @@ function genObject(
         hash === 'main'
           ? JSON.stringify(`${baseNsid}`)
           : JSON.stringify(`${baseNsid}#${hash}`),
-    })
+    });
   }
 
-  const nullableProps = new Set(def.nullable)
+  const nullableProps = new Set(def.nullable);
   if (def.properties) {
     for (const propKey in def.properties) {
-      const propDef = def.properties[propKey]
-      const propNullable = nullableProps.has(propKey)
-      const req =
-        def.required?.includes(propKey) ||
+      const propDef = def.properties[propKey];
+      const propNullable = nullableProps.has(propKey);
+      const req = def.required?.includes(propKey) ||
         (defaultsArePresent &&
           'default' in propDef &&
-          propDef.default !== undefined)
+          propDef.default !== undefined);
       if (propDef.type === 'ref' || propDef.type === 'union') {
         //= propName: External|External
-        const types =
-          propDef.type === 'union'
-            ? propDef.refs.map((ref) => refToUnionType(ref, lexUri, imports))
-            : [refToType(propDef.ref, stripScheme(stripHash(lexUri)), imports)]
+        const types = propDef.type === 'union'
+          ? propDef.refs.map((ref) => refToUnionType(ref, lexUri, imports))
+          : [refToType(propDef.ref, stripScheme(stripHash(lexUri)), imports)];
         if (propDef.type === 'union' && !propDef.closed) {
-          types.push('{ $type: string }')
+          types.push('{ $type: string }');
         }
         iface.addProperty({
           name: `${propKey}${req ? '' : '?'}`,
           type: makeType(types, { nullable: propNullable }),
-        })
-        continue
+        });
+        continue;
       } else {
         if (propDef.type === 'array') {
           //= propName: type[]
-          let propAst
+          let propAst;
           if (propDef.items.type === 'ref') {
             propAst = iface.addProperty({
               name: `${propKey}${req ? '' : '?'}`,
@@ -234,13 +236,13 @@ function genObject(
                   array: true,
                 },
               ),
-            })
+            });
           } else if (propDef.items.type === 'union') {
             const types = propDef.items.refs.map((ref) =>
-              refToUnionType(ref, lexUri, imports),
-            )
+              refToUnionType(ref, lexUri, imports)
+            );
             if (!propDef.items.closed) {
-              types.push('{ $type: string }')
+              types.push('{ $type: string }');
             }
             propAst = iface.addProperty({
               name: `${propKey}${req ? '' : '?'}`,
@@ -248,7 +250,7 @@ function genObject(
                 nullable: propNullable,
                 array: true,
               }),
-            })
+            });
           } else {
             propAst = iface.addProperty({
               name: `${propKey}${req ? '' : '?'}`,
@@ -256,9 +258,9 @@ function genObject(
                 nullable: propNullable,
                 array: true,
               }),
-            })
+            });
           }
-          genComment(propAst, propDef)
+          genComment(propAst, propDef);
         } else {
           //= propName: type
           genComment(
@@ -269,7 +271,7 @@ function genObject(
               }),
             }),
             propDef,
-          )
+          );
         }
       }
     }
@@ -280,7 +282,7 @@ function genObject(
         keyName: 'k',
         keyType: 'string',
         returnType: 'unknown',
-      })
+      });
     }
   }
 }
@@ -300,7 +302,7 @@ export function genToken(file: SourceFile, lexUri: string, def: LexToken) {
       ],
     }),
     def,
-  )
+  );
 }
 
 export function genArray(
@@ -312,25 +314,27 @@ export function genArray(
   if (def.items.type === 'ref') {
     file.addTypeAlias({
       name: toTitleCase(getHash(lexUri)),
-      type: `${refToType(
-        def.items.ref,
-        stripScheme(stripHash(lexUri)),
-        imports,
-      )}[]`,
+      type: `${
+        refToType(
+          def.items.ref,
+          stripScheme(stripHash(lexUri)),
+          imports,
+        )
+      }[]`,
       isExported: true,
-    })
+    });
   } else if (def.items.type === 'union') {
     const types = def.items.refs.map((ref) =>
-      refToUnionType(ref, lexUri, imports),
-    )
+      refToUnionType(ref, lexUri, imports)
+    );
     if (!def.items.closed) {
-      types.push('{ $type: string }')
+      types.push('{ $type: string }');
     }
     file.addTypeAlias({
       name: toTitleCase(getHash(lexUri)),
       type: `(${types.join('|')})[]`,
       isExported: true,
-    })
+    });
   } else {
     genComment(
       file.addTypeAlias({
@@ -339,7 +343,7 @@ export function genArray(
         isExported: true,
       }),
       def,
-    )
+    );
   }
 }
 
@@ -355,7 +359,7 @@ export function genPrimitiveOrBlob(
       isExported: true,
     }),
     def,
-  )
+  );
 }
 
 export function genXrpcParams(
@@ -368,31 +372,29 @@ export function genXrpcParams(
     'query',
     'subscription',
     'procedure',
-  ])
+  ]);
 
   //= export interface QueryParams {...}
   const iface = file.addInterface({
     name: 'QueryParams',
     isExported: true,
-  })
+  });
   if (def.parameters) {
     for (const paramKey in def.parameters.properties) {
-      const paramDef = def.parameters.properties[paramKey]
-      const req =
-        def.parameters.required?.includes(paramKey) ||
+      const paramDef = def.parameters.properties[paramKey];
+      const req = def.parameters.required?.includes(paramKey) ||
         (defaultsArePresent &&
           'default' in paramDef &&
-          paramDef.default !== undefined)
+          paramDef.default !== undefined);
       genComment(
         iface.addProperty({
           name: `${paramKey}${req ? '' : '?'}`,
-          type:
-            paramDef.type === 'array'
-              ? primitiveToType(paramDef.items) + '[]'
-              : primitiveToType(paramDef),
+          type: paramDef.type === 'array'
+            ? primitiveToType(paramDef.items) + '[]'
+            : primitiveToType(paramDef),
         }),
         paramDef,
-      )
+      );
     }
   }
 }
@@ -404,38 +406,37 @@ export function genXrpcInput(
   lexUri: string,
   defaultsArePresent = true,
 ) {
-  const def = lexicons.getDefOrThrow(lexUri, ['query', 'procedure'])
+  const def = lexicons.getDefOrThrow(lexUri, ['query', 'procedure']);
 
   if (def.type === 'procedure' && def.input?.schema) {
     if (def.input.schema.type === 'ref' || def.input.schema.type === 'union') {
       //= export type InputSchema = ...
 
-      const types =
-        def.input.schema.type === 'union'
-          ? def.input.schema.refs.map((ref) =>
-              refToUnionType(ref, lexUri, imports),
-            )
-          : [
-              refToType(
-                def.input.schema.ref,
-                stripScheme(stripHash(lexUri)),
-                imports,
-              ),
-            ]
+      const types = def.input.schema.type === 'union'
+        ? def.input.schema.refs.map((ref) =>
+          refToUnionType(ref, lexUri, imports)
+        )
+        : [
+          refToType(
+            def.input.schema.ref,
+            stripScheme(stripHash(lexUri)),
+            imports,
+          ),
+        ];
 
       if (def.input.schema.type === 'union' && !def.input.schema.closed) {
-        types.push('{ $type: string }')
+        types.push('{ $type: string }');
       }
       file.addTypeAlias({
         name: 'InputSchema',
         type: types.join('|'),
         isExported: true,
-      })
+      });
     } else {
       //= export interface InputSchema {...}
       genObject(file, imports, lexUri, def.input.schema, `InputSchema`, {
         defaultsArePresent,
-      })
+      });
     }
   } else if (def.type === 'procedure' && def.input?.encoding) {
     //= export type InputSchema = string | Uint8Array | Blob
@@ -443,14 +444,14 @@ export function genXrpcInput(
       isExported: true,
       name: 'InputSchema',
       type: 'string | Uint8Array | Blob',
-    })
+    });
   } else {
     //= export type InputSchema = undefined
     file.addTypeAlias({
       isExported: true,
       name: 'InputSchema',
       type: 'undefined',
-    })
+    });
   }
 }
 
@@ -465,30 +466,30 @@ export function genXrpcOutput(
     'query',
     'subscription',
     'procedure',
-  ])
+  ]);
 
-  const schema =
-    def.type === 'subscription' ? def.message?.schema : def.output?.schema
+  const schema = def.type === 'subscription'
+    ? def.message?.schema
+    : def.output?.schema;
   if (schema) {
     if (schema.type === 'ref' || schema.type === 'union') {
       //= export type OutputSchema = ...
-      const types =
-        schema.type === 'union'
-          ? schema.refs.map((ref) => refToUnionType(ref, lexUri, imports))
-          : [refToType(schema.ref, stripScheme(stripHash(lexUri)), imports)]
+      const types = schema.type === 'union'
+        ? schema.refs.map((ref) => refToUnionType(ref, lexUri, imports))
+        : [refToType(schema.ref, stripScheme(stripHash(lexUri)), imports)];
       if (schema.type === 'union' && !schema.closed) {
-        types.push('{ $type: string }')
+        types.push('{ $type: string }');
       }
       file.addTypeAlias({
         name: 'OutputSchema',
         type: types.join('|'),
         isExported: true,
-      })
+      });
     } else {
       //= export interface OutputSchema {...}
       genObject(file, imports, lexUri, schema, `OutputSchema`, {
         defaultsArePresent,
-      })
+      });
     }
   }
 }
@@ -499,19 +500,19 @@ export function genRecord(
   lexicons: Lexicons,
   lexUri: string,
 ) {
-  const def = lexicons.getDefOrThrow(lexUri, ['record'])
+  const def = lexicons.getDefOrThrow(lexUri, ['record']);
 
   //= export interface Record {...}
   genObject(file, imports, lexUri, def.record, 'Record', {
     defaultsArePresent: true,
     allowUnknownProperties: true,
     typeProperty: 'required',
-  })
+  });
 
   //= export function isRecord(v: unknown): v is Record {...}
   genObjHelpers(file, lexUri, 'Record', {
     requireTypeProperty: true,
-  })
+  });
 }
 
 function genObjHelpers(
@@ -521,20 +522,20 @@ function genObjHelpers(
   {
     requireTypeProperty,
   }: {
-    requireTypeProperty: boolean
+    requireTypeProperty: boolean;
   },
 ) {
-  const hash = getHash(lexUri)
+  const hash = getHash(lexUri);
 
-  const hashVar = `hash${ifaceName}`
+  const hashVar = `hash${ifaceName}`;
 
   file.addVariableStatement({
     isExported: false,
     declarationKind: VariableDeclarationKind.Const,
     declarations: [{ name: hashVar, initializer: JSON.stringify(hash) }],
-  })
+  });
 
-  const isX = toCamelCase(`is-${ifaceName}`)
+  const isX = toCamelCase(`is-${ifaceName}`);
 
   //= export function is{X}<V>(v: V) {...}
   file
@@ -544,9 +545,9 @@ function genObjHelpers(
       parameters: [{ name: `v`, type: `V` }],
       isExported: true,
     })
-    .setBodyText(`return is$typed(v, id, ${hashVar})`)
+    .setBodyText(`return is$typed(v, id, ${hashVar})`);
 
-  const validateX = toCamelCase(`validate-${ifaceName}`)
+  const validateX = toCamelCase(`validate-${ifaceName}`);
 
   //= export function validate{X}(v: unknown) {...}
   file
@@ -557,28 +558,30 @@ function genObjHelpers(
       isExported: true,
     })
     .setBodyText(
-      `return validate<${ifaceName} & V>(v, id, ${hashVar}${requireTypeProperty ? ', true' : ''})`,
-    )
+      `return validate<${ifaceName} & V>(v, id, ${hashVar}${
+        requireTypeProperty ? ', true' : ''
+      })`,
+    );
 }
 
 export function stripScheme(uri: string): string {
-  if (uri.startsWith('lex:')) return uri.slice(4)
-  return uri
+  if (uri.startsWith('lex:')) return uri.slice(4);
+  return uri;
 }
 
 export function stripHash(uri: string): string {
-  return uri.split('#')[0] || ''
+  return uri.split('#')[0] || '';
 }
 
 export function getHash(uri: string): string {
-  return uri.split('#').pop() || ''
+  return uri.split('#').pop() || '';
 }
 
 export function ipldToType(def: LexCidLink | LexBytes) {
   if (def.type === 'bytes') {
-    return 'Uint8Array'
+    return 'Uint8Array';
   }
-  return 'CID'
+  return 'CID';
 }
 
 function refToUnionType(
@@ -586,8 +589,8 @@ function refToUnionType(
   lexUri: string,
   imports: Set<string>,
 ): string {
-  const baseNsid = stripScheme(stripHash(lexUri))
-  return `$Typed<${refToType(ref, baseNsid, imports)}>`
+  const baseNsid = stripScheme(stripHash(lexUri));
+  return `$Typed<${refToType(ref, baseNsid, imports)}>`;
 }
 
 function refToType(
@@ -596,18 +599,18 @@ function refToType(
   imports: Set<string>,
 ): string {
   // TODO: import external types!
-  let [refBase, refHash] = ref.split('#')
-  refBase = stripScheme(refBase)
-  if (!refHash) refHash = 'main'
+  let [refBase, refHash] = ref.split('#');
+  refBase = stripScheme(refBase);
+  if (!refHash) refHash = 'main';
 
   // internal
   if (!refBase || baseNsid === refBase) {
-    return toTitleCase(refHash)
+    return toTitleCase(refHash);
   }
 
   // external
-  imports.add(refBase)
-  return `${toTitleCase(refBase)}.${toTitleCase(refHash)}`
+  imports.add(refBase);
+  return `${toTitleCase(refBase)}.${toTitleCase(refHash)}`;
 }
 
 export function primitiveOrBlobToType(
@@ -615,13 +618,13 @@ export function primitiveOrBlobToType(
 ): string {
   switch (def.type) {
     case 'blob':
-      return 'BlobRef'
+      return 'BlobRef';
     case 'bytes':
-      return 'Uint8Array'
+      return 'Uint8Array';
     case 'cid-link':
-      return 'CID'
+      return 'CID';
     default:
-      return primitiveToType(def)
+      return primitiveToType(def);
   }
 }
 
@@ -629,34 +632,36 @@ export function primitiveToType(def: LexPrimitive): string {
   switch (def.type) {
     case 'string':
       if (def.knownValues?.length) {
-        return `${def.knownValues
-          .map((v) => JSON.stringify(v))
-          .join(' | ')} | (string & {})`
+        return `${
+          def.knownValues
+            .map((v) => JSON.stringify(v))
+            .join(' | ')
+        } | (string & {})`;
       } else if (def.enum) {
-        return def.enum.map((v) => JSON.stringify(v)).join(' | ')
+        return def.enum.map((v) => JSON.stringify(v)).join(' | ');
       } else if (def.const) {
-        return JSON.stringify(def.const)
+        return JSON.stringify(def.const);
       }
-      return 'string'
+      return 'string';
     case 'integer':
       if (def.enum) {
-        return def.enum.map((v) => JSON.stringify(v)).join(' | ')
+        return def.enum.map((v) => JSON.stringify(v)).join(' | ');
       } else if (def.const) {
-        return JSON.stringify(def.const)
+        return JSON.stringify(def.const);
       }
-      return 'number'
+      return 'number';
     case 'boolean':
       if (def.const) {
-        return JSON.stringify(def.const)
+        return JSON.stringify(def.const);
       }
-      return 'boolean'
+      return 'boolean';
     case 'unknown':
       // @TODO Should we use "object" here ?
       // the "Record" identifier from typescript get overwritten by the Record
       // interface created by lex-cli.
-      return '{ [_ in string]: unknown }' // Record<string, unknown>
+      return '{ [_ in string]: unknown }'; // Record<string, unknown>
     default:
-      throw new Error(`Unexpected primitive type: ${JSON.stringify(def)}`)
+      throw new Error(`Unexpected primitive type: ${JSON.stringify(def)}`);
   }
 }
 
@@ -664,10 +669,10 @@ function makeType(
   _types: string | string[],
   opts?: { array?: boolean; nullable?: boolean },
 ) {
-  const types = ([] as string[]).concat(_types)
-  if (opts?.nullable) types.push('null')
-  const arr = opts?.array ? '[]' : ''
-  if (types.length === 1) return `(${types[0]})${arr}`
-  if (arr) return `(${types.join(' | ')})${arr}`
-  return types.join(' | ')
+  const types = ([] as string[]).concat(_types);
+  if (opts?.nullable) types.push('null');
+  const arr = opts?.array ? '[]' : '';
+  if (types.length === 1) return `(${types[0]})${arr}`;
+  if (arr) return `(${types.join(' | ')})${arr}`;
+  return types.join(' | ');
 }

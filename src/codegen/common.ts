@@ -1,18 +1,13 @@
-import { Options as PrettierOptions, format } from 'prettier'
-import { Project, SourceFile, VariableDeclarationKind } from 'ts-morph'
-import { type LexiconDoc } from '@atproto/lexicon'
-import { type GeneratedFile } from '../types.ts'
-
-const PRETTIER_OPTS: PrettierOptions = {
-  parser: 'typescript',
-  tabWidth: 2,
-  semi: false,
-  singleQuote: true,
-  trailingComma: 'all',
-}
+import {
+  type Project,
+  type SourceFile,
+  VariableDeclarationKind,
+} from "ts-morph";
+import type { LexiconDoc } from "@atproto/lexicon";
+import type { GeneratedFile } from "../types.ts";
 
 export const utilTs = (project: Project) =>
-  gen(project, '/util.ts', async (file) => {
+  gen(project, "/util.ts", (file) => {
     file.replaceWithText(`
 import { type ValidationResult } from '@atproto/lexicon'
 
@@ -46,45 +41,44 @@ function is$type<Id extends string, Hash extends string>(
         $type.endsWith(hash)
 }
 ${
-  /**
-   * The construct below allows to properly distinguish open unions. Consider
-   * the following example:
-   *
-   * ```ts
-   * type Foo = { $type?: $Type<'foo', 'main'>; foo: string }
-   * type Bar = { $type?: $Type<'bar', 'main'>; bar: string }
-   * type OpenFooBarUnion = $Typed<Foo> | $Typed<Bar> | { $type: string }
-   * ```
-   *
-   * In the context of lexicons, when there is a open union as shown above, the
-   * if `$type` if either `foo` or `bar`, then the object IS of type `Foo` or
-   * `Bar`.
-   *
-   * ```ts
-   * declare const obj1: OpenFooBarUnion
-   * if (is$typed(obj1, 'foo', 'main')) {
-   *   obj1.$type // $Type<'foo', 'main'>
-   *   obj1.foo // string
-   * }
-   * ```
-   *
-   * Similarly, if an object is of type `unknown`, then the `is$typed` function
-   * should only return assurance about the `$type` property, which is what it
-   * actually checks:
-   *
-   * ```ts
-   * declare const obj2: unknown
-   * if (is$typed(obj2, 'foo', 'main')) {
-   *  obj2.$type // $Type<'foo', 'main'>
-   *  // @ts-expect-error
-   *  obj2.foo
-   * }
-   * ```
-   *
-   * The construct bellow is what makes these two scenarios possible.
-   */
-  ''
-}
+      /**
+       * The construct below allows to properly distinguish open unions. Consider
+       * the following example:
+       *
+       * ```ts
+       * type Foo = { $type?: $Type<'foo', 'main'>; foo: string }
+       * type Bar = { $type?: $Type<'bar', 'main'>; bar: string }
+       * type OpenFooBarUnion = $Typed<Foo> | $Typed<Bar> | { $type: string }
+       * ```
+       *
+       * In the context of lexicons, when there is a open union as shown above, the
+       * if `$type` if either `foo` or `bar`, then the object IS of type `Foo` or
+       * `Bar`.
+       *
+       * ```ts
+       * declare const obj1: OpenFooBarUnion
+       * if (is$typed(obj1, 'foo', 'main')) {
+       *   obj1.$type // $Type<'foo', 'main'>
+       *   obj1.foo // string
+       * }
+       * ```
+       *
+       * Similarly, if an object is of type `unknown`, then the `is$typed` function
+       * should only return assurance about the `$type` property, which is what it
+       * actually checks:
+       *
+       * ```ts
+       * declare const obj2: unknown
+       * if (is$typed(obj2, 'foo', 'main')) {
+       *  obj2.$type // $Type<'foo', 'main'>
+       *  // @ts-expect-error
+       *  obj2.foo
+       * }
+       * ```
+       *
+       * The construct bellow is what makes these two scenarios possible.
+       */
+      ""}
 export type $TypedObject<V, Id extends string, Hash extends string> = V extends {
   $type: $Type<Id, Hash>
 }
@@ -129,40 +123,40 @@ export function asPredicate<V extends Validator>(validate: V) {
     return validate(v).success
   }
 }
-`)
-  })
+`);
+  });
 
 export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
-  gen(project, '/lexicons.ts', async (file) => {
+  gen(project, "/lexicons.ts", (file) => {
     const nsidToEnum = (nsid: string): string => {
       return nsid
-        .split('.')
+        .split(".")
         .map((word) => word[0].toUpperCase() + word.slice(1))
-        .join('')
-    }
+        .join("");
+    };
 
     //= import { type LexiconDoc, Lexicons } from '@atproto/lexicon'
     file
       .addImportDeclaration({
-        moduleSpecifier: '@atproto/lexicon',
+        moduleSpecifier: "@atproto/lexicon",
       })
       .addNamedImports([
-        { name: 'LexiconDoc', isTypeOnly: true },
-        { name: 'Lexicons' },
-        { name: 'ValidationError' },
-        { name: 'ValidationResult', isTypeOnly: true },
-      ])
+        { name: "LexiconDoc", isTypeOnly: true },
+        { name: "Lexicons" },
+        { name: "ValidationError" },
+        { name: "ValidationResult", isTypeOnly: true },
+      ]);
 
     //= import { is$typed, maybe$typed, type $Typed } from './util'
     file
       .addImportDeclaration({
-        moduleSpecifier: './util.js',
+        moduleSpecifier: "./util.js",
       })
       .addNamedImports([
-        { name: '$Typed', isTypeOnly: true },
-        { name: 'is$typed' },
-        { name: 'maybe$typed' },
-      ])
+        { name: "$Typed", isTypeOnly: true },
+        { name: "is$typed" },
+        { name: "maybe$typed" },
+      ]);
 
     //= export const schemaDict = {...} as const satisfies Record<string, LexiconDoc>
     file.addVariableStatement({
@@ -170,22 +164,21 @@ export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
-          name: 'schemaDict',
-          initializer:
-            JSON.stringify(
-              lexicons.reduce(
-                (acc, cur) => ({
-                  ...acc,
-                  [nsidToEnum(cur.id)]: cur,
-                }),
-                {},
-              ),
-              null,
-              2,
-            ) + ' as const satisfies Record<string, LexiconDoc>',
+          name: "schemaDict",
+          initializer: JSON.stringify(
+            lexicons.reduce(
+              (acc, cur) => ({
+                ...acc,
+                [nsidToEnum(cur.id)]: cur,
+              }),
+              {},
+            ),
+            null,
+            2,
+          ) + " as const satisfies Record<string, LexiconDoc>",
         },
       ],
-    })
+    });
 
     //= export const schemas = Object.values(schemaDict) satisfies LexiconDoc[]
     file.addVariableStatement({
@@ -193,11 +186,11 @@ export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
-          name: 'schemas',
-          initializer: 'Object.values(schemaDict) satisfies LexiconDoc[]',
+          name: "schemas",
+          initializer: "Object.values(schemaDict) satisfies LexiconDoc[]",
         },
       ],
-    })
+    });
 
     //= export const lexicons: Lexicons = new Lexicons(schemas)
     file.addVariableStatement({
@@ -205,50 +198,50 @@ export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
-          name: 'lexicons',
-          type: 'Lexicons',
-          initializer: 'new Lexicons(schemas)',
+          name: "lexicons",
+          type: "Lexicons",
+          initializer: "new Lexicons(schemas)",
         },
       ],
-    })
+    });
 
     file.addFunction({
       isExported: true,
-      name: 'validate',
+      name: "validate",
       overloads: [
         {
-          typeParameters: ['T extends { $type: string }'],
+          typeParameters: ["T extends { $type: string }"],
           parameters: [
-            { name: 'v', type: 'unknown' },
-            { name: 'id', type: 'string' },
-            { name: 'hash', type: 'string' },
-            { name: 'requiredType', type: 'true' },
+            { name: "v", type: "unknown" },
+            { name: "id", type: "string" },
+            { name: "hash", type: "string" },
+            { name: "requiredType", type: "true" },
           ],
-          returnType: 'ValidationResult<T>',
+          returnType: "ValidationResult<T>",
         },
         {
-          typeParameters: ['T extends { $type?: string }'],
+          typeParameters: ["T extends { $type?: string }"],
           parameters: [
-            { name: 'v', type: 'unknown' },
-            { name: 'id', type: 'string' },
-            { name: 'hash', type: 'string' },
-            { name: 'requiredType', type: 'false', hasQuestionToken: true },
+            { name: "v", type: "unknown" },
+            { name: "id", type: "string" },
+            { name: "hash", type: "string" },
+            { name: "requiredType", type: "false", hasQuestionToken: true },
           ],
-          returnType: 'ValidationResult<T>',
+          returnType: "ValidationResult<T>",
         },
       ],
       parameters: [
-        { name: 'v', type: 'unknown' },
-        { name: 'id', type: 'string' },
-        { name: 'hash', type: 'string' },
-        { name: 'requiredType', type: 'boolean', hasQuestionToken: true },
+        { name: "v", type: "unknown" },
+        { name: "id", type: "string" },
+        { name: "hash", type: "string" },
+        { name: "requiredType", type: "boolean", hasQuestionToken: true },
       ],
       statements: [
         // If $type is present, make sure it is valid before validating the rest of the object
-        'return (requiredType ? is$typed : maybe$typed)(v, id, hash) ? lexicons.validate(`${id}#${hash}`, v) : { success: false, error: new ValidationError(`Must be an object with "${hash === \'main\' ? id : `${id}#${hash}`}" $type property`) }',
+        "return (requiredType ? is$typed : maybe$typed)(v, id, hash) ? lexicons.validate(`${id}#${hash}`, v) : { success: false, error: new ValidationError(`Must be an object with \"${hash === 'main' ? id : `${id}#${hash}`}\" $type property`) }",
       ],
-      returnType: 'ValidationResult',
-    })
+      returnType: "ValidationResult",
+    });
 
     //= export const ids = {...}
     file.addVariableStatement({
@@ -256,34 +249,47 @@ export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
-          name: 'ids',
-          initializer: `{${lexicons
-            .map(
-              (lex) => `\n  ${nsidToEnum(lex.id)}: ${JSON.stringify(lex.id)},`,
-            )
-            .join('')}\n} as const`,
+          name: "ids",
+          initializer: `{${
+            lexicons
+              .map(
+                (lex) =>
+                  `\n  ${nsidToEnum(lex.id)}: ${JSON.stringify(lex.id)},`,
+              )
+              .join("")
+          }\n} as const`,
         },
       ],
-    })
-  })
+    });
+  });
 
 export async function gen(
   project: Project,
   path: string,
-  gen: (file: SourceFile) => Promise<void>,
+  gen: (file: SourceFile) => void | Promise<void>,
 ): Promise<GeneratedFile> {
-  const file = project.createSourceFile(path)
-  await gen(file)
-  await file.save() // Save in the "in memory" file system
-  const src = `${banner()}${file.getFullText()}`
-  const content = await format(src, PRETTIER_OPTS)
+  const file = project.createSourceFile(path);
+  gen(file);
+  await file.save(); // Save in the "in memory" file system
+  const src = `${banner()}${file.getFullText()}`;
 
-  return { path, content }
+  const cmd = new Deno.Command("deno", {
+    args: ["fmt", "-"],
+    stdin: "piped",
+    stdout: "piped",
+  });
+
+  const process = cmd.spawn();
+  const writer = process.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(src));
+  await writer.close();
+
+  const { stdout } = await process.output();
+  const content = new TextDecoder().decode(stdout);
+
+  return { path, content };
 }
 
 function banner() {
-  return `/**
- * GENERATED CODE - DO NOT MODIFY
- */
-`
+  return `/**\n * GENERATED CODE - DO NOT MODIFY\n */\n`;
 }
