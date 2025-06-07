@@ -6,7 +6,7 @@ Command-line tool to generate Lexicon schemas and APIs.
 ## Usage
 
 ```
-Usage: deno run mod.ts [options] [command]
+Usage: deno run jsr:@sprk/lex-cli [options] [command]
 
 Lexicon CLI
 
@@ -25,19 +25,19 @@ Commands:
 **Example 1:** Generate markdown documentation
 
 ```
-$ deno run mod.ts gen-md ./docs/api.md ./schemas/com/service/*.json
+$ deno run jsr:@sprk/lex-cli gen-md ./docs/api.md ./schemas/com/service/*.json
 ```
 
 **Example 2:** Generate a client API
 
 ```
-$ deno run mod.ts gen-api ./api/src ./schemas/com/service/*.json ./schemas/com/another/*.json
+$ deno run jsr:@sprk/lex-cli gen-api ./api/src ./schemas/com/service/*.json ./schemas/com/another/*.json
 ```
 
 **Example 3:** Generate a server API
 
 ```
-$ deno run mod.ts gen-server ./server/src ./schemas/com/service/*.json ./schemas/com/another/*.json
+$ deno run jsr:@sprk/lex-cli gen-server ./server/src ./schemas/com/service/*.json ./schemas/com/another/*.json
 ```
 
 ## Development
@@ -45,7 +45,7 @@ $ deno run mod.ts gen-server ./server/src ./schemas/com/service/*.json ./schemas
 To run with all permissions:
 
 ```
-$ deno run -A mod.ts [command]
+$ deno run -A jsr:@sprk/lex-cli [command]
 ```
 
 ## License
