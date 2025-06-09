@@ -6,7 +6,9 @@ import {
 import type { LexiconDoc } from "@atproto/lexicon";
 import type { GeneratedFile } from "../types.ts";
 
-export const utilTs = (project: Project) =>
+export const utilTs = (
+  project: Project,
+) =>
   gen(project, "/util.ts", (file) => {
     file.replaceWithText(`
 import { type ValidationResult } from '@atproto/lexicon'
@@ -126,8 +128,15 @@ export function asPredicate<V extends Validator>(validate: V) {
 `);
   });
 
-export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
+export const lexiconsTs = (
+  project: Project,
+  lexiconDocs: LexiconDoc[],
+  options?: {
+    useJsExtension?: boolean;
+  },
+) =>
   gen(project, "/lexicons.ts", (file) => {
+    const extension = options?.useJsExtension ? ".js" : ".ts";
     const nsidToEnum = (nsid: string): string => {
       return nsid
         .split(".")
@@ -147,13 +156,10 @@ export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
         { name: "ValidationResult", isTypeOnly: true },
       ]);
 
-    //= import { is$typed, maybe$typed, type $Typed } from './util'
+    //= import { is$typed, maybe$typed, type $Typed } from "./util${extension}"
     file
-      .addImportDeclaration({
-        moduleSpecifier: "./util.js",
-      })
+      .addImportDeclaration({ moduleSpecifier: `./util${extension}` })
       .addNamedImports([
-        { name: "$Typed", isTypeOnly: true },
         { name: "is$typed" },
         { name: "maybe$typed" },
       ]);
@@ -166,7 +172,7 @@ export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
         {
           name: "schemaDict",
           initializer: JSON.stringify(
-            lexicons.reduce(
+            lexiconDocs.reduce(
               (acc, cur) => ({
                 ...acc,
                 [nsidToEnum(cur.id)]: cur,
@@ -251,7 +257,7 @@ export const lexiconsTs = (project: Project, lexicons: LexiconDoc[]) =>
         {
           name: "ids",
           initializer: `{${
-            lexicons
+            lexiconDocs
               .map(
                 (lex) =>
                   `\n  ${nsidToEnum(lex.id)}: ${JSON.stringify(lex.id)},`,

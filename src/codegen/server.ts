@@ -26,8 +26,17 @@ import {
   toTitleCase,
 } from "./util.ts";
 
+export interface ServerApiOptions {
+  honoImportPath?: string;
+  useJsExtension?: boolean;
+}
+
 export async function genServerApi(
   lexiconDocs: LexiconDoc[],
+  options?: {
+    honoImportPath?: string;
+    useJsExtension?: boolean;
+  },
 ): Promise<GeneratedAPI> {
   const project = new Project({
     useInMemoryFileSystem: true,
@@ -38,11 +47,13 @@ export async function genServerApi(
   const nsidTree = lexiconsToDefTree(lexiconDocs);
   const nsidTokens = schemasToNsidTokens(lexiconDocs);
   for (const lexiconDoc of lexiconDocs) {
-    api.files.push(await lexiconTs(project, lexicons, lexiconDoc));
+    api.files.push(await lexiconTs(project, lexicons, lexiconDoc, options));
   }
   api.files.push(await utilTs(project));
-  api.files.push(await lexiconsTs(project, lexiconDocs));
-  api.files.push(await indexTs(project, lexiconDocs, nsidTree, nsidTokens));
+  api.files.push(await lexiconsTs(project, lexiconDocs, options));
+  api.files.push(
+    await indexTs(project, lexiconDocs, nsidTree, nsidTokens, options),
+  );
   return api;
 }
 
@@ -51,8 +62,13 @@ const indexTs = (
   lexiconDocs: LexiconDoc[],
   nsidTree: DefTreeNode[],
   nsidTokens: Record<string, string[]>,
+  options?: {
+    honoImportPath?: string;
+    useJsExtension?: boolean;
+  },
 ) =>
   gen(project, "/index.ts", (file) => {
+    const extension = options?.useJsExtension ? ".js" : ".ts";
     //= import {createServer as createXrpcServer, Server as XrpcServer} from '@sprk/xrpc-server'
     file.addImportDeclaration({
       moduleSpecifier: "@sprk/xrpc-server",
@@ -76,16 +92,16 @@ const indexTs = (
     });
 
     file.addImportDeclaration({
-      moduleSpecifier: "hono",
+      moduleSpecifier: options?.honoImportPath ?? "@hono/hono",
       namedImports: [
         { name: "Env", isTypeOnly: true },
       ],
     });
 
-    //= import {schemas} from './lexicons.js'
+    //= import {schemas} from './lexicons.ts'
     file
       .addImportDeclaration({
-        moduleSpecifier: "./lexicons.js",
+        moduleSpecifier: `./lexicons${extension}`,
       })
       .addNamedImport({
         name: "schemas",
@@ -102,7 +118,9 @@ const indexTs = (
       }
       file
         .addImportDeclaration({
-          moduleSpecifier: `./types/${lexiconDoc.id.split(".").join("/")}.js`,
+          moduleSpecifier: `./types/${
+            lexiconDoc.id.split(".").join("/")
+          }${extension}`,
         })
         .setNamespaceImport(toTitleCase(lexiconDoc.id));
     }
@@ -320,7 +338,7 @@ function genNamespaceCls(file: SourceFile, ns: DefTreeNode) {
       [
         // Placing schema on separate line, since the following one was being formatted
         // into multiple lines and causing the ts-ignore to ignore the wrong line.
-        `const nsid = '${userType.nsid}' // @ts-ignore`,
+        `const nsid = '${userType.nsid}' // @ts-ignore - userType.nsid is dynamically generated and TypeScript can't infer its type`,
         `return this._server.xrpc.${methodType}(nsid, cfg)`,
       ].join("\n"),
     );
@@ -331,6 +349,10 @@ const lexiconTs = (
   project: Project,
   lexicons: Lexicons,
   lexiconDoc: LexiconDoc,
+  options?: {
+    honoImportPath?: string;
+    useJsExtension?: boolean;
+  },
 ) =>
   gen(
     project,
@@ -338,10 +360,10 @@ const lexiconTs = (
     (file) => {
       const main = lexiconDoc.defs.main;
       if (main?.type === "query" || main?.type === "procedure") {
-        //= import express from 'express'
+        //= import { type HonoRequest } from 'hono'
         file.addImportDeclaration({
-          moduleSpecifier: "express",
-          defaultImport: "express",
+          moduleSpecifier: options?.honoImportPath ?? "@hono/hono",
+          namedImports: [{ name: "HonoRequest", isTypeOnly: true }],
         });
 
         const streamingInput = main?.type === "procedure" &&
@@ -357,7 +379,7 @@ const lexiconTs = (
         }
       }
 
-      genCommonImports(file, lexiconDoc.id);
+      genCommonImports(file, lexiconDoc.id, lexiconDoc, options);
 
       const imports: Set<string> = new Set();
       for (const defId in lexiconDoc.defs) {
@@ -382,7 +404,7 @@ const lexiconTs = (
           genUserType(file, imports, lexicons, lexUri);
         }
       }
-      genImports(file, imports, lexiconDoc.id);
+      genImports(file, imports, lexiconDoc.id, options);
     },
   );
 
@@ -393,10 +415,18 @@ function genServerXrpcMethod(
 ) {
   const def = lexicons.getDefOrThrow(lexUri, ["query", "procedure"]);
 
+  // Check if we'll have a success handler before importing
+  const hasHandlerSuccess = !!(def.output?.schema || def.output?.encoding);
+  const output = def.output;
+
   file.addImportDeclaration({
     moduleSpecifier: "@sprk/xrpc-server",
-    namedImports: [{ name: "HandlerAuth" }, { name: "HandlerPipeThrough" }],
+    namedImports: [
+      { name: "HandlerAuth" },
+      ...(hasHandlerSuccess ? [{ name: "HandlerPipeThrough" }] : []),
+    ],
   });
+
   //= export interface HandlerInput {...}
   if (def.type === "procedure" && def.input?.encoding) {
     const handlerInput = file.addInterface({
@@ -432,25 +462,23 @@ function genServerXrpcMethod(
   }
 
   // export interface HandlerSuccess {...}
-  let hasHandlerSuccess = false;
-  if (def.output?.schema || def.output?.encoding) {
-    hasHandlerSuccess = true;
+  if (hasHandlerSuccess && output) {
     const handlerSuccess = file.addInterface({
       name: "HandlerSuccess",
       isExported: true,
     });
 
-    if (def.output.encoding) {
+    if (output.encoding) {
       handlerSuccess.addProperty({
         name: "encoding",
-        type: def.output.encoding
+        type: output.encoding
           .split(",")
           .map((v) => `'${v.trim()}'`)
           .join(" | "),
       });
     }
-    if (def.output?.schema) {
-      if (def.output.encoding.includes(",")) {
+    if (output.schema) {
+      if (output.encoding.includes(",")) {
         handlerSuccess.addProperty({
           name: "body",
           type: "OutputSchema | Uint8Array | stream.Readable",
@@ -458,7 +486,7 @@ function genServerXrpcMethod(
       } else {
         handlerSuccess.addProperty({ name: "body", type: "OutputSchema" });
       }
-    } else if (def.output?.encoding) {
+    } else if (output.encoding) {
       handlerSuccess.addProperty({
         name: "body",
         type: "Uint8Array | stream.Readable",
@@ -505,8 +533,7 @@ function genServerXrpcMethod(
         auth: HA
         params: QueryParams
         input: HandlerInput
-        req: express.Request
-        res: express.Response
+        req: HonoRequest
         resetRouteRateLimits: () => Promise<void>
       }`,
   });

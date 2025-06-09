@@ -1,4 +1,5 @@
 [![JSR](https://jsr.io/badges/@sprk/lex-cli)](https://jsr.io/@sprk/lex-cli)
+
 # Lexicon CLI Tool
 
 Command-line tool to generate Lexicon schemas and APIs.
@@ -16,9 +17,22 @@ Options:
 
 Commands:
   gen-md <outfile> <lexicons...>    Generate markdown documentation
+    Options:
+      --yes                         skip confirmation
+
   gen-ts-obj <lexicons...>          Generate a TS file that exports an array of lexicons
+
   gen-api <outdir> <lexicons...>    Generate a TS client API
+    Options:
+      --yes                         skip confirmation
+      --js                          use .js extension for imports instead of .ts
+
   gen-server <outdir> <lexicons...> Generate a Hono server API
+    Options:
+      --yes                         skip confirmation
+      --js                          use .js extension for imports instead of .ts
+      --hono-import <path>          specify import path for Hono (defaults to "@hono/hono")
+
   help [command]                    display help for command
 ```
 
