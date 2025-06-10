@@ -75,15 +75,101 @@ export function genCommonImports(
     def: LexUserType,
   ) => def.type === "record" || def.type === "object");
 
-  const needsUnionType = Object.values(lexiconDoc.defs).some((
+  const needsUnionType = Object.values(lexiconDoc.defs).some(
+    (def: LexUserType) => {
+      // Check direct array unions
+      if (def.type === "array" && def.items.type === "union") return true;
+
+      // Check object property unions
+      if (def.type === "object") {
+        return Object.values((def as LexObject).properties || {}).some((prop) =>
+          prop.type === "union" ||
+          (prop.type === "array" && prop.items?.type === "union")
+        );
+      }
+
+      // Check record property unions
+      if (def.type === "record") {
+        return Object.values(def.record.properties || {}).some((prop) =>
+          "type" in prop && (
+            prop.type === "union" ||
+            (prop.type === "array" && "items" in prop &&
+              prop.items.type === "union")
+          )
+        );
+      }
+
+      // Check procedure input/output schemas
+      if (def.type === "procedure") {
+        // Check input schema
+        if (def.input?.schema?.type === "union") return true;
+        if (def.input?.schema?.type === "object") {
+          return Object.values(def.input.schema.properties || {}).some((prop) =>
+            "type" in prop && (
+              prop.type === "union" ||
+              (prop.type === "array" && "items" in prop &&
+                prop.items.type === "union")
+            )
+          );
+        }
+        // Check output schema
+        if (def.output?.schema?.type === "union") return true;
+        if (def.output?.schema?.type === "object") {
+          return Object.values(def.output.schema.properties || {}).some((
+            prop,
+          ) =>
+            "type" in prop && (
+              prop.type === "union" ||
+              (prop.type === "array" && "items" in prop &&
+                prop.items.type === "union")
+            )
+          );
+        }
+      }
+
+      // Check query output schemas
+      if (def.type === "query") {
+        if (def.output?.schema?.type === "union") return true;
+        if (def.output?.schema?.type === "object") {
+          return Object.values(def.output.schema.properties || {}).some((
+            prop,
+          ) =>
+            "type" in prop && (
+              prop.type === "union" ||
+              (prop.type === "array" && "items" in prop &&
+                prop.items.type === "union")
+            )
+          );
+        }
+      }
+
+      // Check subscription message schemas
+      if (def.type === "subscription") {
+        if (def.message?.schema?.type === "union") return true;
+        if (def.message?.schema?.type === "object") {
+          return Object.values(def.message.schema.properties || {}).some((
+            prop,
+          ) =>
+            "type" in prop && (
+              prop.type === "union" ||
+              (prop.type === "array" && "items" in prop &&
+                prop.items.type === "union")
+            )
+          );
+        }
+      }
+
+      return false;
+    },
+  );
+
+  const needsIdConstant = Object.values(lexiconDoc.defs).some((
     def: LexUserType,
   ) =>
-    def.type === "array" && def.items.type === "union" ||
-    (def.type === "object" &&
-      Object.values((def as LexObject).properties || {}).some((prop) =>
-        prop.type === "union" ||
-        (prop.type === "array" && prop.items?.type === "union")
-      ))
+    (def.type === "string" &&
+      (def.enum?.length || def.const || def.knownValues?.length)) ||
+    def.type === "record" ||
+    def.type === "object"
   );
 
   //= import {BlobRef} from '@atproto/lexicon'
@@ -144,7 +230,9 @@ export function genCommonImports(
         { name: "validate", initializer: "_validate" },
       ],
     });
+  }
 
+  if (needsIdConstant) {
     //= const id = "{baseNsid}"
     file.addVariableStatement({
       isExported: false, // Do not export to allow tree-shaking
@@ -229,6 +317,10 @@ export function genUserType(
     case "string":
     case "unknown":
       genPrimitiveOrBlob(file, lexUri, def);
+      break;
+
+    case "record":
+      genRecord(file, imports, lexicons, lexUri);
       break;
 
     default:
@@ -440,6 +532,27 @@ export function genPrimitiveOrBlob(
     }),
     def,
   );
+
+  // Generate enum constants if we have them
+  if (def.type === "string" && def.enum?.length) {
+    for (const enumValue of def.enum) {
+      const constName = toScreamingSnakeCase(enumValue);
+      //= export const ENUM_VALUE = `${id}#enumValue`
+      genComment(
+        file.addVariableStatement({
+          isExported: true,
+          declarationKind: VariableDeclarationKind.Const,
+          declarations: [
+            {
+              name: constName,
+              initializer: `\`\${id}#${enumValue}\``,
+            },
+          ],
+        }),
+        def,
+      );
+    }
+  }
 }
 
 export function genXrpcParams(
@@ -610,15 +723,15 @@ export function genRecord(
 ) {
   const def = lexicons.getDefOrThrow(lexUri, ["record"]);
 
-  //= export interface Record {...}
-  genObject(file, imports, lexUri, def.record, "Record", {
+  //= export interface MainRecord {...}
+  genObject(file, imports, lexUri, def.record, "MainRecord", {
     defaultsArePresent: true,
     allowUnknownProperties: true,
     typeProperty: "required",
   });
 
   //= export function isRecord(v: unknown): v is Record {...}
-  genObjHelpers(file, lexUri, "Record", {
+  genObjHelpers(file, lexUri, "MainRecord", {
     requireTypeProperty: true,
   });
 }
@@ -744,7 +857,7 @@ export function primitiveToType(def: LexPrimitive): string {
           def.knownValues
             .map((v) => JSON.stringify(v))
             .join(" | ")
-        } | (string & Record<PropertyKey, never>)`;
+        } | (string & { __brand?: never })`;
       } else if (def.enum) {
         return def.enum.map((v) => JSON.stringify(v)).join(" | ");
       } else if (def.const) {
