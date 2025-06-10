@@ -19,13 +19,17 @@ type RecursiveZodError = {
 export function readAllLexicons(paths: string[]): LexiconDoc[] {
   const docs: LexiconDoc[] = [];
   for (const path of paths) {
-    if (!path.endsWith(".json") || !statSync(path).isFile) {
-      continue;
-    }
-    try {
-      docs.push(readLexicon(path));
-    } catch {
-      // skip
+    if (statSync(path).isDirectory) {
+      // If it's a directory, recursively read all .json files in it
+      const entries = Array.from(readDirSync(path));
+      const subPaths = entries.map((entry) => join(path, entry.name));
+      docs.push(...readAllLexicons(subPaths));
+    } else if (path.endsWith(".json") && statSync(path).isFile) {
+      try {
+        docs.push(readLexicon(path));
+      } catch {
+        // skip
+      }
     }
   }
   return docs;

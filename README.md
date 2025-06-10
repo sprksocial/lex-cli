@@ -42,16 +42,35 @@ Commands:
 $ deno run jsr:@sprk/lex-cli gen-md ./docs/api.md ./schemas/com/service/*.json
 ```
 
+You can also specify directories, which will be searched recursively for .json
+files:
+
+```
+$ deno run jsr:@sprk/lex-cli gen-md ./docs/api.md ./schemas/com/service
+```
+
 **Example 2:** Generate a client API
 
 ```
 $ deno run jsr:@sprk/lex-cli gen-api ./api/src ./schemas/com/service/*.json ./schemas/com/another/*.json
 ```
 
+Or using directory paths:
+
+```
+$ deno run jsr:@sprk/lex-cli gen-api ./api/src ./schemas/com
+```
+
 **Example 3:** Generate a server API
 
 ```
 $ deno run jsr:@sprk/lex-cli gen-server ./server/src ./schemas/com/service/*.json ./schemas/com/another/*.json
+```
+
+Or using directory paths:
+
+```
+$ deno run jsr:@sprk/lex-cli gen-server ./server/src ./schemas/com
 ```
 
 ## Development
