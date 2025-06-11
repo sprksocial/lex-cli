@@ -83,12 +83,33 @@ const indexTs = (
     file
       .addImportDeclaration({ moduleSpecifier: `./lexicons${extension}` })
       .addNamedImports([{ name: "schemas" }]);
+
+    // Check if any lexicon docs use cid-link types
+    const needsCID = lexiconDocs.some((lexiconDoc) =>
+      Object.values(lexiconDoc.defs).some((def) =>
+        def.type === "cid-link" ||
+        (def.type === "object" &&
+          Object.values((def as any).properties || {}).some((prop: any) =>
+            "type" in prop && prop.type === "cid-link"
+          )) ||
+        (def.type === "array" && def.items.type === "cid-link") ||
+        (def.type === "record" &&
+          Object.values(def.record.properties || {}).some((prop: any) =>
+            "type" in prop && (prop.type === "cid-link" ||
+              (prop.type === "array" && "items" in prop &&
+                prop.items.type === "cid-link"))
+          ))
+      )
+    );
+
     //= import {CID} from 'multiformats/cid'
-    file
-      .addImportDeclaration({
-        moduleSpecifier: "multiformats/cid",
-      })
-      .addNamedImports([{ name: "CID" }]);
+    if (needsCID) {
+      file
+        .addImportDeclaration({
+          moduleSpecifier: "multiformats/cid",
+        })
+        .addNamedImports([{ name: "CID" }]);
+    }
 
     //= import { type OmitKey, type Un$Typed } from './util.ts'
     file

@@ -68,7 +68,23 @@ export function genCommonImports(
     (def.type === "object" &&
       Object.values((def as LexObject).properties || {}).some((prop) =>
         "type" in prop && prop.type === "cid-link"
-      ))
+      )) ||
+    (def.type === "array" && def.items.type === "cid-link") ||
+    // Check record schema for cid-links
+    (def.type === "record" &&
+      Object.values(def.record.properties || {}).some((prop) =>
+        "type" in prop && (prop.type === "cid-link" ||
+          (prop.type === "array" && "items" in prop &&
+            prop.items.type === "cid-link"))
+      )) ||
+    // Check output schema for cid-links
+    (def.type === "query" || def.type === "procedure") &&
+      def.output?.schema?.type === "object" &&
+      Object.values(def.output.schema.properties || {}).some((prop) =>
+        "type" in prop && (prop.type === "cid-link" ||
+          (prop.type === "array" && "items" in prop &&
+            prop.items.type === "cid-link"))
+      )
   );
 
   const needsTypedValidation = Object.values(lexiconDoc.defs).some((
@@ -728,6 +744,13 @@ export function genRecord(
     defaultsArePresent: true,
     allowUnknownProperties: true,
     typeProperty: "required",
+  });
+
+  //= export type Record = MainRecord
+  file.addTypeAlias({
+    name: "Record",
+    type: "MainRecord",
+    isExported: true,
   });
 
   //= export function isRecord(v: unknown): v is Record {...}
