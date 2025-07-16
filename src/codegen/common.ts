@@ -181,7 +181,7 @@ export const lexiconsTs = (
             ),
             null,
             2,
-          ) + " as const satisfies Record<string, LexiconDoc>",
+          ) + " as Record<string, LexiconDoc>",
         },
       ],
     });
